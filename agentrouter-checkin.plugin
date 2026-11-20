@@ -1,0 +1,27 @@
+#!name = AgentRouter 登录签到
+#!desc = 邮箱或用户名后台尝试登录签到；GitHub / Linux DO 官网授权提醒。只需导入本插件，配套 JS 自动加载。默认关闭定时，不抓 Cookie。
+#!author = Minis
+#!homepage = https://github.com/dlclover911/loon-plugins
+#!icon = calendar.badge.checkmark
+#!system = iOS
+#!loon_version = 3.5.1(983)
+#!date = 2026-11-20
+#!tag = 签到
+
+# Loon 插件。Egern 的参数 UI 和调度兼容性尚未真机验证。
+# 邮箱模式不主动注销 Safari；只有站点返回 checked_in=true 才确认奖励到账。
+# GitHub / Linux DO 仅提供官网授权提醒，不是后台自动授权。
+# 密码只在本机参数中填写。请勿分享填有密码的配置。
+
+[Argument]
+usePassword = switch,true,tag=邮箱或用户名登录,desc=三种方式只开启一种。邮箱登录默认开启。
+useGithub = switch,false,tag=GitHub 登录,desc=通知打开官网重新授权；请关闭另外两项，不填写 GitHub 密码。
+useLinuxdo = switch,false,tag=Linux DO 登录,desc=通知打开官网重新授权；请关闭另外两项，不填写 Linux DO 密码。
+account = input,"",tag=本站邮箱或用户名,desc=仅邮箱登录使用；Gmail 地址可作为本站邮箱。
+sitePassword = input,"",tag=本站密码,desc=AgentRouter 站内密码，不是 Google 邮箱密码。仅在本机填写，不要分享配置。
+cronExpr = input,"0 8 * * *",tag=签到时间,desc=5 段 cron；默认每天 08:00，按设备时区。
+enabled = switch,false,tag=定时签到,desc=先手动测试，确认签到成功后再开启。
+
+[Script]
+generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/agentrouter-checkin.js", {${account}, ${sitePassword}, ${usePassword}, ${useGithub}, ${useLinuxdo}}) with tag="AgentRouter 手动签到", timeout=30
+cron ${cronExpr} then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/agentrouter-checkin.js", {${account}, ${sitePassword}, ${usePassword}, ${useGithub}, ${useLinuxdo}}) with enable=${enabled}, tag="AgentRouter 定时签到", timeout=30
