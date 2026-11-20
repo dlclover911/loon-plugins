@@ -1,0 +1,28 @@
+#!name = 星驰 API 每日签到
+#!desc = 打开控制台自动保存登录令牌；支持手动和定时签到、今日已签到判断、失效提醒。仅导入本插件，JS 自动加载。首次抓取需要本站 HTTPS 解密和受信任证书。
+#!author = Minis
+#!homepage = https://github.com/dlclover911/loon-plugins
+#!icon = calendar.badge.checkmark
+#!system = iOS
+#!loon_version = 3.5.1(983)
+#!date = 2026-11-20
+#!tag = 签到
+
+# 只保存本站成功响应对应的 Bearer 登录令牌，不读取密码、Cookie 或 refresh_token。
+# 凭据存储于当前代理 App 本地，不上传 GitHub。请勿分享含本地凭据的备份。
+# 关闭抓取只会停用抓取脚本，本插件的 MITM 域名仍保留。
+# Loon / Egern 实机导入、抓取和调度待验证；若 TLS 失败，不要关闭证书校验。
+
+[Argument]
+capture = switch,true,tag=抓取登录凭据,desc=开启本站 HTTPS 解密并信任证书，再用 Safari 登录并打开控制台。收到保存通知后可关闭；失效后再开启抓取。
+cronExpr = input,"0 8 * * *",tag=签到时间,desc=5 段 cron，默认设备时间每天 08:00。
+enabled = switch,false,tag=定时签到,desc=默认关闭。先手动签到测试成功，再打开定时。
+notify = switch,true,tag=签到通知,desc=通知抓取、签到或失效结果；关闭后仅记录不含凭据的简短日志。
+
+[Script]
+response if ${url} ~= /^https:\/\/xingchiapi\.com\/api\/v1\/(?:auth\/me|user\/(?:profile|checkin))(?:[?#]|$)/i && ${response.status} == 200 then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js", {${capture}, ${notify}}) with enable=${capture}, tag="星驰 API 获取登录凭据", requires_body=true, timeout=10
+generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js", {${notify}}) with tag="星驰 API 手动签到", timeout=40
+cron ${cronExpr} then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js", {${notify}}) with enable=${enabled}, tag="星驰 API 定时签到", timeout=40
+
+[Mitm]
+hostname = xingchiapi.com
