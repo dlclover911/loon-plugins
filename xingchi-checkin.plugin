@@ -1,28 +1,34 @@
 #!name = 星驰 API 每日签到
-#!desc = 打开控制台自动保存登录令牌；支持手动和定时签到、今日已签到判断、失效提醒。仅导入本插件，JS 自动加载。首次抓取需要本站 HTTPS 解密和受信任证书。
+#!desc = 保留原手动签到、定时签到和登录凭据抓取，另可选独立会话自动续期（默认关闭）。首次抓取需要本站 HTTPS 解密和受信任证书。
 #!author = Minis
 #!homepage = https://github.com/dlclover911/loon-plugins
 #!icon = calendar.badge.checkmark
 #!system = iOS
 #!loon_version = 3.5.1(983)
-#!date = 2026-11-20
+#!date = 2026-11-21
 #!tag = 签到
 
-# 只保存本站成功响应对应的 Bearer 登录令牌，不读取密码、Cookie 或 refresh_token。
-# 凭据存储于当前代理 App 本地，不上传 GitHub。请勿分享含本地凭据的备份。
-# 关闭抓取只会停用抓取脚本，本插件的 MITM 域名仍保留。
-# Loon / Egern 实机导入、抓取和调度待验证；若 TLS 失败，不要关闭证书校验。
+# 原模式只保存访问令牌。自动续期须单独绑定一次，仅在本机保存独立会话的访问和刷新令牌。
+# 不读取密码或 Cookie，不上传凭据，不跳过 TLS。不要分享包含凭据的代理 App 备份。
+# 绑定支持本站邮箱密码登录及其 2FA；第三方登录方式暂未验证。
+# 绑定后关闭无痕标签页，不要点退出，也不要继续用该会话浏览。关闭自动续期不清除数据，可运行手动清除。
+# 关闭抓取不移除本站 MITM 配置。Egern 的新增功能兼容性待实机确认。
 
 [Argument]
-capture = switch,true,tag=抓取登录凭据,desc=开启本站 HTTPS 解密并信任证书，再用 Safari 登录并打开控制台。收到保存通知后可关闭；失效后再开启抓取。
+capture = switch,true,tag=抓取登录凭据,desc=启用后可从正常访问官网控制台的成功请求保存访问令牌。失效可重新打开并访问官网。
+autoRenew = switch,false,tag=自动续期,desc=默认关闭。开启后手动运行「绑定独立续期会话」并在 Safari 无痕页正常登录一次。之后每次签到按需续期。
 cronExpr = input,"0 8 * * *",tag=签到时间,desc=5 段 cron，默认设备时间每天 08:00。
 enabled = switch,false,tag=定时签到,desc=默认关闭。先手动签到测试成功，再打开定时。
-notify = switch,true,tag=签到通知,desc=通知抓取、签到或失效结果；关闭后仅记录不含凭据的简短日志。
+notify = switch,true,tag=签到通知,desc=通知绑定、抓取、签到或失败结果；关闭后仅记录不含凭据的简短日志。
 
 [Script]
-response if ${url} ~= /^https:\/\/xingchiapi\.com\/api\/v1\/(?:auth\/me|user\/(?:profile|checkin))(?:[?#]|$)/i && ${response.status} == 200 then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js", {${capture}, ${notify}}) with enable=${capture}, tag="星驰 API 获取登录凭据", requires_body=true, timeout=10
-generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js", {${notify}}) with tag="星驰 API 手动签到", timeout=40
-cron ${cronExpr} then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js", {${notify}}) with enable=${enabled}, tag="星驰 API 定时签到", timeout=40
+response if ${url} ~= /^https:\/\/xingchiapi\.com\/api\/v1\/(?:auth\/me|user\/(?:profile|checkin))(?:[?#]|$)/i && ${response.status} == 200 then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${capture}, ${notify}, ${autoRenew}}) with enable=${capture}, tag="星驰 API 获取登录凭据", requires_body=true, timeout=10
+response if ${url} ~= /^https:\/\/xingchiapi\.com\/api\/v1\/auth\/login(?:\/2fa)?(?:\?[^#]*)?$/ && ${response.status} == 200 then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${autoRenew}, ${notify}}) with enable=${autoRenew}, tag="星驰 API 登录响应绑定", requires_body=true, timeout=10
+generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${autoRenew}, ${notify}}) with enable=${autoRenew}, tag="星驰 API 绑定独立续期会话", timeout=10
+generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${notify}}) with tag="星驰 API 清除续期会话", timeout=10
+generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${autoRenew}, ${notify}}) with enable=${autoRenew}, tag="星驰 API 验证续期（不签到）", timeout=40
+generic then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${autoRenew}, ${notify}}) with tag="星驰 API 手动签到", timeout=80
+cron ${cronExpr} then script("https://raw.githubusercontent.com/dlclover911/loon-plugins/main/xingchi-checkin.js?v=20261121-renew", {${autoRenew}, ${notify}}) with enable=${enabled}, tag="星驰 API 定时签到", timeout=80
 
 [Mitm]
 hostname = xingchiapi.com
